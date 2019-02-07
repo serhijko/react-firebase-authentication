@@ -45,7 +45,7 @@ class SignInFormBase extends Component {
     event.preventDefault();
   }
 
-  onShange = event => {
+  onChange = event => {
     this.setState({ [event.target.name]: event.target.value });
   };
 
