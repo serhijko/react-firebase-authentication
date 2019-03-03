@@ -8,14 +8,38 @@ import {
 } from '../Session';
 import { withFirebase } from '../Firebase';
 
-const HomePage = () => (
-  <div>
-    <h1>Home Page</h1>
-    <p>The Home Page is accessible by every signed in user.</p>
+class HomePage extends Component {
+  constructor(props) {
+    super(props);
 
-    <Messages />
-  </div>
-);
+    this.state = {
+      users: null,
+    };
+  }
+  
+  componentDidMount() {
+    this.props.firebase.users().on('value', snapshot => {
+      this.setState({
+        users: snapshot.val(),
+      });
+    });
+  }
+
+  componentWillUnmount() {
+    this.props.firebase.users().off();
+  }
+
+  render() {
+    return (
+      <div>
+        <h1>Home Page</h1>
+        <p>The Home Page is accessible by every signed in user.</p>
+
+        <Messages users={this.state.users} />
+      </div>
+    );
+  }
+}
 
 class MessageBase extends Component {
   constructor(props) {
@@ -99,6 +123,7 @@ class MessageBase extends Component {
   };
 
   render() {
+    const { users } = this.props;
     const { text, messages, loading } = this.state;
 
     return (
@@ -110,20 +135,29 @@ class MessageBase extends Component {
                 More
               </button>
             )}
-            
+
             {loading && <div>Loading ...</div>}
 
-            {messages ? (
+            {messages && (
               <MessageList
-                messages={messages}
+                messages={messages.map(message => ({
+                  ...message,
+                  user: users
+                    ? users[message.userId]
+                    : { userId: message.userId },
+                }))}
                 onEditMessage={this.onEditMessage}
                 onRemoveMessage={this.onRemoveMessage}
               />
-            ) : (
-              <div>There are no messages ...</div>
             )}
 
-            <form onSubmit={event => this.onCreateMessage(event, authUser)}>
+            {!messages && <div>There are no messages ...</div>}
+
+            <form
+              onSubmit={event =>
+                this.onCreateMessage(event, authUser)
+              }
+            >
               <input
                 type="text"
                 value={text}
@@ -196,8 +230,10 @@ class MessageItem extends Component {
           />
         ) : (
           <span>
-            <strong>{message.userId}</strong> {message.text}
-            {message.editedAt && <span>(Edited)</span>}
+            <strong>
+              {message.user.username || message.user.userId}
+            </strong>{' '}
+            {message.text} {message.editedAt && <span>(Edited)</span>}
           </span>
         )}
 
@@ -228,6 +264,7 @@ const Messages = withFirebase(MessageBase);
 const condition = authUser => !!authUser;
 
 export default compose(
+  withFirebase,
   withEmailVerification,
   withAuthorization(condition),
 )(HomePage);
