@@ -25,15 +25,21 @@ class MessageBase extends Component {
       text: '',
       loading: false,
       messages: [],
+      limit: 5,
     };
   }
 
   componentDidMount() {
+    this.onListenForMessages();
+  }
+
+  onListenForMessages() {
     this.setState({ loading: true });
 
     this.props.firebase
       .messages()
       .orderByChild('createdAt')
+      .limitToLast(this.state.limit)
       .on('value', snapshot => {
         const messageObject = snapshot.val();
         
@@ -85,6 +91,13 @@ class MessageBase extends Component {
     this.props.firebase.message(uid).remove();
   };
 
+  onNextPage = () => {
+    this.setState(
+      state => ({ limit: state.limit + 5 }),
+      this.onListenForMessages,
+    );
+  };
+
   render() {
     const { text, messages, loading } = this.state;
 
@@ -92,6 +105,12 @@ class MessageBase extends Component {
       <AuthUserContext.Consumer>
         {authUser => (
           <div>
+            {!loading && messages && (
+              <button type="button" onClick={this.onNextPage}>
+                More
+              </button>
+            )}
+            
             {loading && <div>Loading ...</div>}
 
             {messages ? (
